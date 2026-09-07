@@ -33,3 +33,5 @@ jobs:
         with:
           name: STAR-COMMUNICATION-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+on:
+  workflow_dispatch:
