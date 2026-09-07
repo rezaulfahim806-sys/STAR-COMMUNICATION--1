@@ -1,11 +1,7 @@
-name: Build STAR COMMUNICATION APK
+name: Build STAR COMMUNICATION
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
 
 permissions:
   contents: read
@@ -18,7 +14,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Show project files
+        run: |
+          echo "=== ROOT ==="
+          ls -la
+          echo "=== APP ==="
+          ls -la app || true
+          echo "=== APP BUILD FILE ==="
+          cat app/build.gradle || true
+          echo "=== SETTINGS ==="
+          cat settings.gradle
+
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,8 +36,11 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build STAR COMMUNICATION APK
-        run: gradle :app:assembleDebug --no-daemon
+      - name: Check Android tasks
+        run: gradle :app:tasks --all
+
+      - name: Build APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
