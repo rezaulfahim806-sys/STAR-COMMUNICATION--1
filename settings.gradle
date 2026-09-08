@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'STAR COMMUNICATION'
+rootProject.name = "STAR COMMUNICATION"
 include ':app'
