@@ -1,16 +1,26 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.6.1'
-    }
+plugins {
+    id 'com.android.application'
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+android {
+    namespace 'com.starcommunication.isp'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.starcommunication.isp'
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+        }
+
+        release {
+            minifyEnabled false
+        }
     }
 }
