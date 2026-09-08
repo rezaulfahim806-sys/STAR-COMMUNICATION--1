@@ -1,24 +1,128 @@
-apply plugin: 'com.android.application'
+name: Build STAR COMMUNICATION APK
 
-android {
-    namespace 'com.starcommunication.isp'
-    compileSdk 35
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
 
-    defaultConfig {
-        applicationId 'com.starcommunication.isp'
-        minSdk 23
-        targetSdk 35
-        versionCode 1
-        versionName '1.0'
-    }
+permissions:
+  contents: read
 
-    buildTypes {
-        debug {
-            debuggable true
-        }
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-        release {
-            minifyEnabled false
-        }
-    }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Prepare Android project from repository files
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p app/src/main/java/com/starcommunication/isp
+          mkdir -p app/src/main/assets
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+
+          # The repository currently contains the Android module files at root.
+          # Move them into the standard Gradle Android structure for this build.
+          cp build.gradle app/build.gradle
+
+          cat > build.gradle <<'GRADLE'
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
 }
+GRADLE
+
+          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          cp MainActivity.java app/src/main/java/com/starcommunication/isp/MainActivity.java
+          cp index.html app/src/main/assets/index.html
+
+          if [ -f styles.xml ]; then cp styles.xml app/src/main/res/values/styles.xml; fi
+          if [ -f ic_launcher_background.xml ]; then cp ic_launcher_background.xml app/src/main/res/drawable/ic_launcher_background.xml; fi
+          if [ -f ic_launcher_foreground.xml ]; then cp ic_launcher_foreground.xml app/src/main/res/drawable/ic_launcher_foreground.xml; fi
+
+          # Use the existing launcher vector as a safe fallback.
+          if [ -f ic_launcher.xml ]; then
+            cp ic_launcher.xml app/src/main/res/drawable/ic_launcher.xml
+          fi
+          if [ -f ic_launcher_round.xml ]; then
+            cp ic_launcher_round.xml app/src/main/res/drawable/ic_launcher_round.xml
+          fi
+
+          # Ensure a valid theme exists even if styles.xml was not uploaded.
+          if [ ! -f app/src/main/res/values/styles.xml ]; then
+            cat > app/src/main/res/values/styles.xml <<'XML'
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#2563EB</item>
+        <item name="android:navigationBarColor">#101828</item>
+        <item name="android:statusBarColor">#101828</item>
+    </style>
+</resources>
+XML
+          fi
+
+          # Normalize the manifest to use drawable launchers that exist in this build.
+          cat > app/src/main/AndroidManifest.xml <<'XML'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <application
+        android:allowBackup="true"
+        android:label="STAR COMMUNICATION"
+        android:theme="@style/AppTheme"
+        android:icon="@drawable/ic_launcher">
+        <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+XML
+
+          echo "--- prepared project ---"
+          find app -type f | sort
+
+      - name: Verify Android project
+        run: |
+          test -f settings.gradle
+          test -f build.gradle
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/java/com/starcommunication/isp/MainActivity.java
+
+      - name: Build STAR COMMUNICATION APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: STAR-COMMUNICATION-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
